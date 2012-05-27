@@ -5,7 +5,8 @@
             [monger.collection :as mc]
             [monger.query :as mq])
   (:use [noir.core :only [defpage]]
-        monger.operators)
+        monger.operators
+        hiccup.element)
   (:import [org.bson.types BSONTimestamp]))
 
 (def mongo-uri "mongodb://127.0.0.1/")
@@ -32,6 +33,11 @@
   [strategy]
   (mc/insert (:strats config) { :content strategy }))
 
+(defn get-random-strat []
+  (let [strats (mc/find-maps "strats")
+        index (rand-int (count strats))]
+    (:content (nth strats index))))
+
 (defn make-craving
   "Generate a craving object"
   [user-name]
@@ -55,9 +61,13 @@
 (defpage "/" []
   (common/layout
    [:h1 "Cravings app"]
+   [:p (get-random-strat)]
    [:p (str "Tom O'Brien - " (:points user) " points.")]
+   [:p ]
    [:p
-    [:a "I have a craving"]]))
+    (link-to "/test" "I gave in")
+    "-"
+    (link-to "/test" "I didn't give in!")]))
 
 (defpage [:post "/login"] {:keys [username password]}
   (str "You tried to login as " username " with the password " password))
