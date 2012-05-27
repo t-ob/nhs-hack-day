@@ -9,8 +9,7 @@
         hiccup.element)
   (:import [org.bson.types BSONTimestamp]))
 
-(def mongo-uri "mongodb://127.0.0.1/")
-(def config {:uri "mongodb://127.0.0.1/cravings"
+(def config {:uri (get (System/getenv) "MONGOHQ_URL")
              :users "users"
              :strats "strats"
              :cravings "cravings"})
@@ -49,7 +48,7 @@
   "Get list of n most recent cravings"
   (let [query (mq/with-collection (:cravings config)
                 (mq/find {})
-                (mq/sort { :timestamp 1})
+                (mq/sort { :timestamp -1 })
                 (mq/limit n))]
     (map #(hash-map :username (:user %) :result (:result %)) query)))
 
