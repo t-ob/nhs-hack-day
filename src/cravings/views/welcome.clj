@@ -1,6 +1,6 @@
 (ns cravings.views.welcome
   (:require [cravings.views.common :as common]
-            [noir.content.getting-started]
+            [noir.response :as resp]
             [monger.core :as mg]
             [monger.collection :as mc]
             [monger.query :as mq])
@@ -40,10 +40,18 @@
 
 (defn make-craving
   "Generate a craving object"
-  [user-name]
+  [user result]
   (mc/insert (:cravings config) {:timestamp (BSONTimestamp.)
-                                 :user user-name
-                                 :result 0}))
+                                 :user (:user user)
+                                 :result result}))
+
+(defn get-cravings [n]
+  "Get list of n most recent cravings"
+  (let [query (mq/with-collection (:cravings config)
+                (mq/find {})
+                (mq/sort { :timestamp 1})
+                (mq/limit n))]
+    (map #(hash-map :username (:user %) :result (:result %)) query)))
 
 (defn get-random-record
   "Get a random record"
@@ -55,6 +63,9 @@
              {:user (:user user)}
              {"$inc" {:points amount}}))
 
+(defn get-score [user]
+  (:points (first (mc/find-maps (:users config) {:user (:user user)}))))
+
 (def user
   (first (mc/find-maps "users" {:user "tobrien"})))
 
@@ -62,21 +73,37 @@
   (common/layout
    [:h1 "Cravings app"]
    [:p (get-random-strat)]
-   [:p (str "Tom O'Brien - " (:points user) " points.")]
-   [:p ]
+   [:p (str "Tom O'Brien : "
+            (get-score user)
+            " points.")]
    [:p
-    (link-to "/test" "I gave in")
-    "-"
-    (link-to "/test" "I didn't give in!")]))
+    (link-to "/failed" "I gave in")
+    " "
+    (link-to "/overcame" "I didn't give in!")]
+   [:p "Most recent cravings:"]
+   (common/craving-list (get-cravings 10))
+   ))
 
 (defpage [:post "/login"] {:keys [username password]}
   (str "You tried to login as " username " with the password " password))
 
-(defpage "/user/:first-name" {:keys [id]})
+(defpage "/failed" []
+  (update-score user -10)
+  (make-craving user false)
+  (resp/redirect "/"))
+
+(defpage "/overcame" []
+  (update-score user 25)
+  (make-craving user true)
+  (resp/redirect "/"))
 
 (defpage "/login" []
   (common/layout
    [:h1 "Log-in"]))
+
+(defpage "/test" []
+  (update-score user 100)
+  (resp/redirect "/"))
 
 (defpage "/welcome" []
          (common/layout
